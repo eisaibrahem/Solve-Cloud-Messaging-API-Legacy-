@@ -1,0 +1,27 @@
+{
+  "message": {
+    "token": "device token",
+    "notification": {
+      "title": "Notification Title",
+      "body": "Notification Body"
+    },
+    "android": {
+      "notification": {
+        "notification_priority": "PRIORITY_MAX",
+        "sound": "default"
+      }
+    },
+    "apns": {
+      "payload": {
+        "aps": {
+          "content_available": true
+        }
+      }
+    },
+    "data": {
+      "type": "type",
+      "id": "userId",
+      "click_action": "FLUTTER_NOTIFICATION_CLICK"
+    }
+  }
+}
