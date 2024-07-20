@@ -2,13 +2,20 @@
 
 This repository provides a solution for handling notifications using Firebase Cloud Messaging (FCM) with the latest API. The provided code helps in sending notifications to devices using FCM tokens.
 
+## Overview
+
+The project contains two main files:
+
+1. `notifications_helper.dart` - Handles the initialization of Firebase Messaging, obtaining device tokens, and sending notifications.
+2. `body.json` - JSON structure for the notification body used in the `sendNotifications` method.
+
 ## Notification Helper
 
-The `NotificationsHelper` class handles the initialization of Firebase Messaging, obtaining device tokens, and sending notifications.
+The `NotificationsHelper` class is designed to manage the process of sending notifications through Firebase Cloud Messaging (FCM). Below is a breakdown of the functionalities provided by this class.
 
-### Code
+### notifications_helper.dart
 
-#### notifications_helper.dart
+#### Code Explanation
 
 ```dart
 import 'package:dio/dio.dart';
@@ -75,11 +82,15 @@ class NotificationsHelper {
       http.Client client = await auth.clientViaServiceAccount(
           auth.ServiceAccountCredentials.fromJson(serviceAccountJson), scopes);
 
-      auth.AccessCredentials credentials = await auth.obtainAccessCredentialsViaServiceAccount(
-          auth.ServiceAccountCredentials.fromJson(serviceAccountJson), scopes, client);
+      auth.AccessCredentials credentials =
+          await auth.obtainAccessCredentialsViaServiceAccount(
+              auth.ServiceAccountCredentials.fromJson(serviceAccountJson),
+              scopes,
+              client);
 
       client.close();
-      print("Access Token: ${credentials.accessToken.data}"); // Print Access Token
+      print(
+          "Access Token: ${credentials.accessToken.data}"); // Print Access Token
       return credentials.accessToken.data;
     } catch (e) {
       print("Error getting access token: $e");
@@ -100,8 +111,10 @@ class NotificationsHelper {
         "notification": {"title": title, "body": body},
         "android": {
           "notification": {
-            "notification_priority": "PRIORITY_MAX",
-            "sound": "default"
+            "priority": "PRIORITY_MAX",
+            "sound": "default",
+            "default_vibrate_timings": true,
+            "click_action": "FLUTTER_NOTIFICATION_CLICK"
           }
         },
         "apns": {
@@ -127,7 +140,6 @@ class NotificationsHelper {
   }) async {
     try {
       var serverKeyAuthorization = await getAccessToken();
-      
       // Change your project ID
       const String urlEndPoint = "https://fcm.googleapis.com/v1/projects/(YourProjectId)/messages:send";
 
