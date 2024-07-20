@@ -1,58 +1,156 @@
-# Solve-Cloud-Messaging-API-Legacy
+# Solve Cloud Messaging API Legacy
 
-This repository contains a solution to handle Firebase Cloud Messaging (FCM) using the Legacy API with Flutter. The solution includes two files:
-1. `notification_helper.dart` - Handles the sending of notifications using FCM and managing access tokens.
-2. `body.json` - The JSON body structure used for sending notifications.
+This repository provides a solution for handling notifications using Firebase Cloud Messaging (FCM) with the latest API. The provided code helps in sending notifications to devices using FCM tokens.
 
-## Overview
+## Notification Helper
 
-### 1. `notification_helper.dart`
+The `NotificationsHelper` class handles the initialization of Firebase Messaging, obtaining device tokens, and sending notifications.
 
-This Dart file provides a class `NotificationsHelper` that includes methods to:
-- Initialize FCM and get the device token.
-- Handle received notifications.
-- Obtain an OAuth 2.0 access token using a service account.
-- Send notifications to specific devices using FCM.
+### Code
 
-#### Key Methods
+#### notifications_helper.dart
 
-- `initNotifications()`: Requests permission for notifications and retrieves the device token.
-- `handleMessages(RemoteMessage? message)`: Handles incoming messages and displays a toast notification.
-- `handleBackgroundNotifications()`: Handles notifications when the app is terminated.
-- `getAccessToken()`: Retrieves an OAuth 2.0 access token using a service account.
-- `getBody({required String fcmToken, required String title, required String body, required String userId, String? type})`: Constructs the notification payload.
-- `sendNotifications({required String fcmToken, required String title, required String body, required String userId, String? type})`: Sends the notification using the FCM HTTP v1 API.
+```dart
+import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'package:googleapis_auth/auth_io.dart' as auth;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-### 2. `body.json`
+import '../components/components.dart';
+import '../constants.dart';
 
-This JSON file provides the structure of the notification payload sent to FCM.
+class NotificationsHelper {
+  // Create instance of FirebaseMessaging
+  final _firebaseMessaging = FirebaseMessaging.instance;
 
-#### Example JSON Structure
-```json
-{
-  "message": {
-    "token": "device token",
-    "notification": {
-      "title": "Notification Title",
-      "body": "Notification Body"
-    },
-    "android": {
-      "notification": {
-        "notification_priority": "PRIORITY_MAX",
-        "sound": "default"
-      }
-    },
-    "apns": {
-      "payload": {
-        "aps": {
-          "content_available": true
+  // Initialize notifications for this app or device
+  Future<void> initNotifications() async {
+    await _firebaseMessaging.requestPermission();
+    // Get device token
+    String? deviceToken = await _firebaseMessaging.getToken();
+    DeviceToken = deviceToken;
+    print("===================Device FirebaseMessaging Token====================");
+    print(deviceToken);
+    print("===================Device FirebaseMessaging Token====================");
+  }
+
+  // Handle notifications when received
+  void handleMessages(RemoteMessage? message) {
+    if (message != null) {
+      // navigatorKey.currentState?.pushNamed(NotificationsScreen.routeName, arguments: message);
+      showToast(
+          text: 'on Background Message notification',
+          state: ToastStates.SUCCESS);
+    }
+  }
+
+  // Handle notifications in case app is terminated
+  void handleBackgroundNotifications() async {
+    FirebaseMessaging.instance.getInitialMessage().then(handleMessages);
+    FirebaseMessaging.onMessageOpenedApp.listen(handleMessages);
+  }
+
+  Future<String?> getAccessToken() async {
+    final serviceAccountJson = {
+      "type": "",
+      "project_id": "",
+      "private_key_id": "",
+      "private_key":"",
+      "client_email": "",
+      "client_id": "",
+      "auth_uri": "",
+      "token_uri": "",
+      "auth_provider_x509_cert_url": "",
+      "client_x509_cert_url": "",
+      "universe_domain": ""
+    };
+
+    List<String> scopes = [
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/firebase.database",
+      "https://www.googleapis.com/auth/firebase.messaging"
+    ];
+
+    try {
+      http.Client client = await auth.clientViaServiceAccount(
+          auth.ServiceAccountCredentials.fromJson(serviceAccountJson), scopes);
+
+      auth.AccessCredentials credentials = await auth.obtainAccessCredentialsViaServiceAccount(
+          auth.ServiceAccountCredentials.fromJson(serviceAccountJson), scopes, client);
+
+      client.close();
+      print("Access Token: ${credentials.accessToken.data}"); // Print Access Token
+      return credentials.accessToken.data;
+    } catch (e) {
+      print("Error getting access token: $e");
+      return null;
+    }
+  }
+
+  Map<String, dynamic> getBody({
+    required String fcmToken,
+    required String title,
+    required String body,
+    required String userId,
+    String? type,
+  }) {
+    return {
+      "message": {
+        "token": fcmToken,
+        "notification": {"title": title, "body": body},
+        "android": {
+          "notification": {
+            "notification_priority": "PRIORITY_MAX",
+            "sound": "default"
+          }
+        },
+        "apns": {
+          "payload": {
+            "aps": {"content_available": true}
+          }
+        },
+        "data": {
+          "type": type,
+          "id": userId,
+          "click_action": "FLUTTER_NOTIFICATION_CLICK"
         }
       }
-    },
-    "data": {
-      "type": "type",
-      "id": "userId",
-      "click_action": "FLUTTER_NOTIFICATION_CLICK"
+    };
+  }
+
+  Future<void> sendNotifications({
+    required String fcmToken,
+    required String title,
+    required String body,
+    required String userId,
+    String? type,
+  }) async {
+    try {
+      var serverKeyAuthorization = await getAccessToken();
+      
+      // Change your project ID
+      const String urlEndPoint = "https://fcm.googleapis.com/v1/projects/(YourProjectId)/messages:send";
+
+      Dio dio = Dio();
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Authorization'] = 'Bearer $serverKeyAuthorization';
+
+      var response = await dio.post(
+        urlEndPoint,
+        data: getBody(
+          userId: userId,
+          fcmToken: fcmToken,
+          title: title,
+          body: body,
+          type: type ?? "message",
+        ),
+      );
+
+      // Print response status code and body for debugging
+      print('Response Status Code: ${response.statusCode}');
+      print('Response Data: ${response.data}');
+    } catch (e) {
+      print("Error sending notification: $e");
     }
   }
 }
